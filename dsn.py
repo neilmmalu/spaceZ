@@ -33,6 +33,8 @@ launchMutex = RLock()
 class Ui_MainWindow(object):
 
     def setupUi(self, MainWindow):
+
+        #GUI Stuff
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(800, 558)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -170,6 +172,9 @@ class Ui_MainWindow(object):
         self.decommissionButton.setText(_translate("MainWindow", "Decommission"))
 
 
+    #Clicking add launch button.
+    #Spawns new vehicle with new thread and new socket
+    #New vehicle also attached to new payload with its own socket
     def addNewLaunch(self):
         fileName, _ = QtWidgets.QFileDialog.getOpenFileName(None, "Select Config File", "", "Config files (*.ini)")
         if fileName:
@@ -216,6 +221,7 @@ class Ui_MainWindow(object):
             vehicles.append(lv)
 
 
+    #Delete button should remove launch, payload and name from the list
     def deleteLaunch(self):
         if self.launchList.currentItem() != None:
             with launchMutex:
@@ -227,6 +233,8 @@ class Ui_MainWindow(object):
             del payload
             self.updateDetails()
 
+    #Reset function is called when the item in the list is changed.
+    #Reset the buttons to their original state
     def reset(self):
         if self.launchList.currentItem() != None:
             lv = launches[self.launchList.currentItem().text()][0]
@@ -289,10 +297,16 @@ class Ui_MainWindow(object):
 
             self.updateDetails()
 
+
+    #Update details is called every 0.5s
+    #It updates the GUI dashboard and buttons based on the item selected
     def updateDetails(self):
         if self.launchList.currentItem() != None:
 
             with launchMutex:
+
+                #Add details to the launch vehicle dashboard
+
                 lv = launches[self.launchList.currentItem().text()][0]
                 lvDetails = ""
                 if not lv.isLaunched:
@@ -311,6 +325,7 @@ class Ui_MainWindow(object):
                 elif lv.isDeployable:
                     self.deployButton.setEnabled(True)
 
+                #Add telemetry data if its being sent
                 if not lv.isSending:
                     lis = launches[self.launchList.currentItem().text()]
                     lis[2] = {}
@@ -323,6 +338,7 @@ class Ui_MainWindow(object):
                         lvDetails += key + ": " + str(value) + "\n"
 
 
+                #Get details of the payload and display on the dashboard
 
                 payload = launches[self.launchList.currentItem().text()][3]
                 payloadDetails = ""
@@ -341,6 +357,7 @@ class Ui_MainWindow(object):
                 if payload.isDecommissioned:
                     self.decommissionButton.setEnabled(False)
                 
+                #Get payload telemetry data if it is sending it
                 if not payload.isSendingTel:
                     lis = launches[self.launchList.currentItem().text()]
                     lis[5] = {}
@@ -356,6 +373,7 @@ class Ui_MainWindow(object):
 
                 payloadDetails += "\n"
 
+                #Get payload data if it is sending it
                 if not payload.isSendingData:
                     lis = launches[self.launchList.currentItem().text()]
                     lis[6] = {}
@@ -372,6 +390,8 @@ class Ui_MainWindow(object):
                     else:
                         payloadDetails += "Image Data: \n"
 
+
+                #Based on type of payload, process the data it will send and display
                 payloadData = launches[self.launchList.currentItem().text()][6]
                 for key, value in payloadData.items():
                     if key == "Image":
@@ -408,7 +428,8 @@ class Ui_MainWindow(object):
 
 
 
-
+    #Initiates launch of the vehicle, that begins the timeToOrbit countdown
+    #Send the launch signal to the launch vehicle through the socket
     def launchVehicle(self):
         if self.launchList.currentItem() != None:
             lv = launches[self.launchList.currentItem().text()][0]
@@ -419,6 +440,7 @@ class Ui_MainWindow(object):
             socket.send(b"Launch")
             self.lvLaunchButton.setEnabled(False)
 
+    #Send the Start Telemetry signal to the launch vehicle
     def startTel(self):
         if self.launchList.currentItem() != None:
             socket = launches[self.launchList.currentItem().text()][1]
@@ -430,6 +452,7 @@ class Ui_MainWindow(object):
             self.lvStartTButton.setEnabled(False)
             self.lvStopTButton.setEnabled(True)
 
+    #Send the Stop Telemetry signal to the launch vehicle
     def stopTel(self):
         if self.launchList.currentItem() != None:
             socket = launches[self.launchList.currentItem().text()][1]
@@ -440,6 +463,7 @@ class Ui_MainWindow(object):
             self.lvStopTButton.setEnabled(False)
             self.lvStartTButton.setEnabled(True)
 
+    #Send the Deorbit signal to the launch vehicle
     def deOrbit(self):
         if self.launchList.currentItem() != None:
             socket = launches[self.launchList.currentItem().text()][1]
@@ -452,6 +476,8 @@ class Ui_MainWindow(object):
             self.lvStopTButton.setEnabled(False)
             self.lvStartTButton.setEnabled(False)
 
+    #Send the deploy signal to the launch vehicle if the payload is deployable
+    #Is only activated after t seconds
     def deployPayload(self):
         if self.launchList.currentItem() != None:
             socket = launches[self.launchList.currentItem().text()][4]
@@ -463,6 +489,7 @@ class Ui_MainWindow(object):
             self.deployButton.setEnabled(False)
             self.deOrbitButton.setEnabled(True)
 
+    #Send the Start Telemetry signal to the payload
     def startPayloadTel(self):
         if self.launchList.currentItem() != None:
             socket = launches[self.launchList.currentItem().text()][4]
@@ -473,6 +500,7 @@ class Ui_MainWindow(object):
             self.payloadStartTButton.setEnabled(False)
             self.payloadStopTButton.setEnabled(True)
 
+    #Send the Stop Telemetry signal to the payload
     def stopPayloadTel(self):
         if self.launchList.currentItem() != None:
             socket = launches[self.launchList.currentItem().text()][4]
@@ -483,6 +511,7 @@ class Ui_MainWindow(object):
             self.payloadStopTButton.setEnabled(False)
             self.payloadStartTButton.setEnabled(True)
 
+    #Send the Start Data signal to the payload
     def startPayloadData(self):
         if self.launchList.currentItem() != None:
             socket = launches[self.launchList.currentItem().text()][4]
@@ -493,6 +522,7 @@ class Ui_MainWindow(object):
             self.payloadStartDButton.setEnabled(False)
             self.payloadStopDButton.setEnabled(True)
 
+    #Send the Stop Data signal to the payload
     def stopPayloadData(self):
         if self.launchList.currentItem() != None:
             socket = launches[self.launchList.currentItem().text()][4]
@@ -503,6 +533,7 @@ class Ui_MainWindow(object):
             self.payloadStopDButton.setEnabled(False)
             self.payloadStartDButton.setEnabled(True)
 
+    #Send the Decommission signal to the payload
     def decommission(self):
         if self.launchList.currentItem() != None:
             socket = launches[self.launchList.currentItem().text()][4]
@@ -517,6 +548,8 @@ class Ui_MainWindow(object):
             self.payloadStopTButton.setEnabled(False)
 
 
+#This is the thread that controls the DSN socket. 
+#Waits, receives and sends messages to launch vehicles
 class dsn(QtCore.QThread):
     
     sig = pyqtSignal(str)
@@ -527,19 +560,24 @@ class dsn(QtCore.QThread):
     def run(self):
         while True:
             with launchMutex:
+                #For each socket, keep checking if messages have arrived
                 for key, value in launches.items():
                     socket1 = value[1]
                     socket2 = value[4]
                     message = None
                     payloadMessage = None
+                    #This is the launch vehicle transmission block
                     try:
+                        #Save the received message into the buffer so that it can be processed 
                         lvMessage = socket1.recv_json(flags=zmq.NOBLOCK)
                         value[2] = json.loads(lvMessage)
                         # self.sig.emit(message)
                     except zmq.Again as e:
                         pass
-
+                    #This is the payload transmission block
                     try:
+                        #Save the received message into the buffer so that it can be processed 
+                        #Also save the message based on the type
                         payloadMessage = socket2.recv_json(flags=zmq.NOBLOCK)
                         temp = json.loads(payloadMessage)
                         if(temp["type"] == "Tel"):

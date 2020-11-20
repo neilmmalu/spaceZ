@@ -16,6 +16,7 @@ class payload(Thread):
         configObj = ConfigParser()
         configObj.read(fileName)
 
+        #Create payload based on the config file
         lvInfo = configObj["PAYLOAD_INFO"]
         self.name = lvInfo["name"]
         self.type = lvInfo["type"]
@@ -24,6 +25,7 @@ class payload(Thread):
 
         self.data = {}
 
+        #Set up based on type of payload 
         if(self.type == "Scientific"):
             pass
         elif(self.type == "Comm"):
@@ -33,6 +35,7 @@ class payload(Thread):
 
         self.data["type"] = "Data"
 
+        #Set initial telemetry data
         self.telemetry["type"] = "Tel"
         self.telemetry["altitude"] = 0
         self.telemetry["latitude"] = 0
@@ -60,51 +63,64 @@ class payload(Thread):
         timer = self.time
         while True:
             try:
+                #receive signal from DSN
                 message = (socket.recv(flags=zmq.NOBLOCK)).decode("utf-8")
             except zmq.Again as e:
                 message = ""
-            # print(self.name + ": " + message)
+            #Deploy payload
             if(message == "Deploy"):
                 self.isDeployed = True
 
+            #Start sending telemetry data
             if(message == "StartT"):
                 self.isSendingTel = True
 
+            #Start sending payload data
             if(message == "StartD"):
                 self.isSendingData = True
 
+            #Stop sending telemetry data
             if(message == "StopT"):
                 self.isSendingTel = False
 
+            #Stop sending payload data
             if(message == "StopD"):
                 self.isSendingData = False
 
+            #Decommission the satellite
             if(message == "Decommission"):
                 self.isDecommissioned = True
                 self.isSendingTel = True
                 self.isSendingData = True
 
+            #If payload is in telemetry sending mode
             if self.isSendingTel:
                 self.telemetryMutex.acquire()
                 try:
+                    #Send telemetry data to dsn
                     data = json.dumps(self.telemetry)
                     socket.send_json(data)
                 finally:
                     self.telemetryMutex.release()
 
+            #Timer for sending data.
+            #Only send data when timer is 0. then reset the timer
             if timer == 0 or self.isDecommissioned:
                 timer = self.time
                 flag = True
 
+            #If payload is in data sending mode
             if self.isSendingData and flag:
                 self.dataMutex.acquire()
                 try:
+                    #Send payload data to dsn
                     data = json.dumps(self.data)
                     socket.send_json(data)
                 finally:
                     self.dataMutex.release()
             flag = False
 
+            #Update telemetry and payload data
             self.updateTelemetry()
 
             self.updateData()
@@ -115,6 +131,7 @@ class payload(Thread):
             if self.isDecommissioned:
                 break
 
+    #This function updates telemetry data every second so that it can be sent to dsn
     def updateTelemetry(self):
         self.telemetryMutex.acquire()
         try:
@@ -152,6 +169,7 @@ class payload(Thread):
         finally:
             self.telemetryMutex.release()
 
+    #This function generates random data to send to dsn based on time specified in the config file
     def updateData(self):
         if(self.type == "Scientific"):
             self.data["Rainfall"] = randint(0, 10)

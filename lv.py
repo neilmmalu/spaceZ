@@ -12,10 +12,13 @@ class lv(Thread):
         configObj = ConfigParser()
         configObj.read(fileName)
 
+        #Create launch vehicle based on the config file
         lvInfo = configObj["LAUNCH_INFO"]
         self.name = lvInfo["name"]
         self.orbit = int(lvInfo["orbit"])
         self.telemetry = {}
+
+        #Set initial telemetry data
         self.telemetry["altitude"] = 0
         self.telemetry["latitude"] = 0
         self.telemetry["longitude"] = 0
@@ -28,10 +31,9 @@ class lv(Thread):
         self.isDeployable = False
         self.isDeOrbited = False
         self.port = port
-        # print(self.name)
         self.payload = lvInfo["payloadConfig"]
         
-
+    #Thread that sends and receives transmissions to and from dsn
     def run(self):
         context = zmq.Context()
         socket = context.socket(zmq.PAIR)
@@ -39,41 +41,50 @@ class lv(Thread):
         socket.connect(string)
         while True:
             try:
+                #receive signal from DSN
                 message = (socket.recv(flags=zmq.NOBLOCK)).decode("utf-8")
             except zmq.Again as e:
                 message = ""
-            # print(self.name + ": " + message)
+            
+            # Initiate launch
             if(message == "Launch"):
                 self.isLaunched = True
 
+            #Start sending telemetry data
             if(message == "StartT"):
                 self.isSending = True
 
+            #Stop sending telemetry data
             if(message == "StopT"):
                 self.isSending = False
 
+            #De orbit the launch vehicle
             if(message == "DeOrbit"):
                 self.isDeOrbited = True
                 self.isSending = True
 
+            #If launch vehicle is in sending mode
             if self.isSending:
                 self.telemetryMutex.acquire()
                 try:
+                    #Send telemetry data to dsn
                     data = json.dumps(self.telemetry)
                     socket.send_json(data)
                 finally:
                     self.telemetryMutex.release()
 
+            #Update telemetry data
             self.updateTelemetry()
 
             if(self.isLaunched and self.telemetry["timeToOrbit"] == 0):
                 self.isDeployable = True
 
-            # print(self.name + ": " + str(self.telemetry))
+            #Repeat loop every second (so telemetry data is sent every second)
             time.sleep(1)
             if self.isDeOrbited:
                 break
 
+    #This function updates telemetry data every second so that it can be sent to dsn
     def updateTelemetry(self):
         if self.isLaunched:
             # print(self.name + ": in here")
